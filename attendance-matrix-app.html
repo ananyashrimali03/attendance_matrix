@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Matrix Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Playfair+Display:wght@700;900&display=swap');
+        
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --success: #06d6a0;
+            --warning: #ffd166;
+            --danger: #ef476f;
+            --text: #f0f0f0;
+            --text-dim: #a0a0a0;
+            --border: #2a2a3e;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.01) 2px,
+                    rgba(255, 255, 255, 0.01) 4px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: slideDown 0.8s ease;
+        }
+        
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--highlight), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+        
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            margin-top: 1rem;
+        }
+        
+        .upload-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.8s ease 0.2s backwards;
+        }
+        
+        .upload-section:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 32px rgba(233, 69, 96, 0.1);
+        }
+        
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--highlight);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .section-title::before {
+            content: '//';
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        
+        input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 2rem;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .file-input-label:hover {
+            border-color: var(--highlight);
+            background: rgba(233, 69, 96, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .file-input-label.has-file {
+            border-color: var(--success);
+            background: rgba(6, 214, 160, 0.05);
+        }
+        
+        .file-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+            min-height: 150px;
+            transition: all 0.3s ease;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: var(--highlight);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--highlight), #c13855);
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(233, 69, 96, 0.3);
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(233, 69, 96, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            margin-top: 2rem;
+            animation: fadeIn 0.8s ease 0.4s backwards;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--success), var(--warning));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td.present {
+            color: var(--success);
+            font-weight: 700;
+        }
+        
+        td.absent {
+            color: var(--danger);
+            font-weight: 700;
+        }
+        
+        .percentage-cell {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        
+        .percentage-high { color: var(--success); }
+        .percentage-medium { color: var(--warning); }
+        .percentage-low { color: var(--danger); }
+        
+        .download-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+        
+        .download-buttons button {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            box-shadow: 0 4px 16px rgba(15, 52, 96, 0.3);
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            box-shadow: 0 8px 24px rgba(15, 52, 96, 0.4);
+        }
+        
+        .status-message {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .status-success {
+            background: rgba(6, 214, 160, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+        
+        .status-error {
+            background: rgba(239, 71, 111, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+        
+        .status-info {
+            background: rgba(15, 52, 96, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--text);
+        }
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 4px solid var(--highlight);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .instructions h3 {
+            font-family: 'Playfair Display', serif;
+            color: var(--highlight);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .instructions ol {
+            margin-left: 1.5rem;
+            line-height: 1.8;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.5rem;
+            color: var(--text-dim);
+        }
+        
+        .instructions code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            color: var(--success);
+            font-size: 0.85rem;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--highlight);
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            animation: fadeIn 0.8s ease 0.6s backwards;
+        }
+        
+        footer a {
+            color: var(--highlight);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        footer a:hover {
+            color: var(--success);
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .upload-section, .results-section {
+                padding: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Attendance Matrix</h1>
+            <div class="subtitle">Generate comprehensive attendance reports</div>
+        </header>
+        
+        <div class="upload-section">
+            <div class="section-title">Upload Attendance Data</div>
+            
+            <div class="instructions">
+                <h3>📋 How to Use</h3>
+                <ol>
+                    <li>Upload your Excel file with attendance sheets (each sheet = one class date)</li>
+                    <li>Each sheet should have an <code>Email Address</code> column with student emails</li>
+                    <li>The main sheet should be named <code>Final AttendanceParticipation</code> with student roster</li>
+                    <li>(Optional) Add additional attendance for specific dates using the text area below</li>
+                    <li>Click "Generate Matrix" to create your attendance report</li>
+                </ol>
+            </div>
+            
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".xlsx, .xls" />
+                <label for="fileInput" class="file-input-label" id="fileLabel">
+                    <span class="file-icon">📊</span>
+                    <div><strong>Click to upload</strong> or drag and drop</div>
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-dim);">
+                        Excel files only (.xlsx, .xls)
+                    </div>
+                </label>
+            </div>
+            
+            <div class="input-group">
+                <label for="additionalAttendance">Additional Attendance (Optional)</label>
+                <textarea 
+                    id="additionalAttendance" 
+                    placeholder="Format: Date Name|Email Address
+Example:
+Nov 13 John Doe|jdoe@example.com
+Nov 13 Jane Smith|jsmith@example.com
+Dec 5 John Doe|jdoe@example.com"
+                ></textarea>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-dim);">
+                    Add attendance records from paper sign-in sheets or photos. Each line should be: Date Name|Email
+                </div>
+            </div>
+            
+            <button id="generateBtn" onclick="processAttendance()">
+                Generate Attendance Matrix
+            </button>
+            
+            <div id="statusMessage"></div>
+        </div>
+        
+        <div id="resultsSection" style="display: none;" class="results-section">
+            <div class="section-title">Attendance Results</div>
+            
+            <div class="stats-grid" id="statsGrid"></div>
+            
+            <div class="table-wrapper">
+                <table id="resultsTable"></table>
+            </div>
+            
+            <div class="download-buttons">
+                <button onclick="downloadExcel()">
+                    ⬇️ Download Excel
+                </button>
+                <button onclick="downloadCSV()" class="btn-secondary">
+                    ⬇️ Download CSV
+                </button>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Built for Carnegie Mellon University School of Architecture</p>
+            <p style="margin-top: 0.5rem;">Created with ❤️ by Ananya</p>
+        </footer>
+    </div>
+    
+    <script>
+        let attendanceData = null;
+        let workbook = null;
+        
+        // File input handling
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileLabel.classList.add('has-file');
+                fileLabel.innerHTML = `
+                    <span class="file-icon">✅</span>
+                    <div><strong>${file.name}</strong></div>
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-dim);">
+                        Click to change file
+                    </div>
+                `;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    workbook = XLSX.read(data, { type: 'array' });
+                    showStatus('File loaded successfully!', 'success');
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+        
+        function parseAdditionalAttendance(text) {
+            const lines = text.trim().split('\n');
+            const attendance = {};
+            
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                
+                // Parse format: "Date Name|Email"
+                const parts = line.split('|');
+                if (parts.length !== 2) return;
+                
+                const email = parts[1].trim();
+                const dateAndName = parts[0].trim();
+                const dateParts = dateAndName.split(' ');
+                
+                // Get date (first 1-2 words depending on format)
+                let date;
+                if (dateParts.length >= 2) {
+                    // Check if second part is a number (day)
+                    if (!isNaN(dateParts[1])) {
+                        date = `${dateParts[0]} ${dateParts[1]}`;
+                    } else {
+                        date = dateParts[0];
+                    }
+                }
+                
+                if (!date) return;
+                
+                if (!attendance[date]) {
+                    attendance[date] = new Set();
+                }
+                attendance[date].add(email);
+            });
+            
+            // Convert Sets to Arrays
+            Object.keys(attendance).forEach(date => {
+                attendance[date] = Array.from(attendance[date]);
+            });
+            
+            return attendance;
+        }
+        
+        function processAttendance() {
+            if (!workbook) {
+                showStatus('Please upload an Excel file first!', 'error');
+                return;
+            }
+            
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading"></span>Processing...';
+            
+            try {
+                // Get all sheet names
+                const sheetNames = workbook.SheetNames;
+                const excludedSheets = ['Final AttendanceParticipation', 'Suggestions', 
+                                      'Form Responses 20', 'Form Responses 19', 'Form Responses 18'];
+                
+                const dateSheets = sheetNames.filter(name => !excludedSheets.includes(name));
+                
+                // Load main student roster
+                const mainSheet = workbook.Sheets['Final AttendanceParticipation'];
+                if (!mainSheet) {
+                    throw new Error('Could not find "Final AttendanceParticipation" sheet');
+                }
+                
+                const mainData = XLSX.utils.sheet_to_json(mainSheet);
+                
+                // Initialize attendance tracking
+                const students = mainData.map(row => ({
+                    name: row.Student || row.student || '',
+                    email: row.Andrew || row.Email || row.email || ''
+                })).filter(s => s.email);
+                
+                const attendanceByEmail = {};
+                students.forEach(student => {
+                    attendanceByEmail[student.email] = {
+                        name: student.name,
+                        dates: {}
+                    };
+                });
+                
+                // Get dates from Excel sheets
+                const allDates = [];
+                const sheetToDate = {};
+                
+                dateSheets.forEach(sheetName => {
+                    const sheet = workbook.Sheets[sheetName];
+                    const data = XLSX.utils.sheet_to_json(sheet);
+                    
+                    if (data.length > 0) {
+                        // Try to get date from timestamp
+                        let date = null;
+                        if (data[0].Timestamp) {
+                            const timestamp = new Date(data[0].Timestamp);
+                            if (!isNaN(timestamp)) {
+                                date = timestamp.toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: '2-digit' 
+                                });
+                            }
+                        }
+                        
+                        if (date) {
+                            sheetToDate[sheetName] = date;
+                            allDates.push(date);
+                        }
+                    }
+                });
+                
+                // Parse additional attendance
+                const additionalText = document.getElementById('additionalAttendance').value;
+                const additionalAttendance = parseAdditionalAttendance(additionalText);
+                
+                // Add additional dates
+                Object.keys(additionalAttendance).forEach(date => {
+                    if (!allDates.includes(date)) {
+                        allDates.push(date);
+                    }
+                });
+                
+                // Sort dates chronologically
+                allDates.sort((a, b) => {
+                    const dateA = new Date(a + ' 2025');
+                    const dateB = new Date(b + ' 2025');
+                    return dateA - dateB;
+                });
+                
+                // Initialize all dates as absent
+                students.forEach(student => {
+                    allDates.forEach(date => {
+                        attendanceByEmail[student.email].dates[date] = 'A';
+                    });
+                });
+                
+                // Mark attendance from Excel sheets
+                dateSheets.forEach(sheetName => {
+                    const date = sheetToDate[sheetName];
+                    if (!date) return;
+                    
+                    const sheet = workbook.Sheets[sheetName];
+                    const data = XLSX.utils.sheet_to_json(sheet);
+                    
+                    const emailColumn = data[0] && Object.keys(data[0]).find(key => 
+                        key.toLowerCase().includes('email')
+                    );
+                    
+                    if (emailColumn) {
+                        data.forEach(row => {
+                            const email = row[emailColumn];
+                            if (email && attendanceByEmail[email]) {
+                                attendanceByEmail[email].dates[date] = 'P';
+                            }
+                        });
+                    }
+                });
+                
+                // Mark additional attendance
+                Object.keys(additionalAttendance).forEach(date => {
+                    additionalAttendance[date].forEach(email => {
+                        if (attendanceByEmail[email]) {
+                            attendanceByEmail[email].dates[date] = 'P';
+                        }
+                    });
+                });
+                
+                // Calculate statistics
+                const results = students.map(student => {
+                    const email = student.email;
+                    const dates = attendanceByEmail[email].dates;
+                    const present = Object.values(dates).filter(v => v === 'P').length;
+                    const absent = Object.values(dates).filter(v => v === 'A').length;
+                    const percentage = allDates.length > 0 ? (present / allDates.length * 100).toFixed(1) : 0;
+                    
+                    return {
+                        name: student.name,
+                        email: email,
+                        dates: dates,
+                        present: present,
+                        absent: absent,
+                        percentage: parseFloat(percentage)
+                    };
+                });
+                
+                attendanceData = {
+                    students: results,
+                    dates: allDates,
+                    totalClasses: allDates.length
+                };
+                
+                displayResults(attendanceData);
+                showStatus(`Successfully processed ${students.length} students across ${allDates.length} class dates!`, 'success');
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Attendance Matrix';
+            }
+        }
+        
+        function displayResults(data) {
+            const { students, dates, totalClasses } = data;
+            
+            // Calculate statistics
+            const avgAttendance = (students.reduce((sum, s) => sum + s.percentage, 0) / students.length).toFixed(1);
+            const highAttendance = students.filter(s => s.percentage >= 85).length;
+            const lowAttendance = students.filter(s => s.percentage < 70).length;
+            
+            // Display stats
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="stat-value">${students.length}</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${totalClasses}</div>
+                    <div class="stat-label">Class Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgAttendance}%</div>
+                    <div class="stat-label">Average Attendance</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${highAttendance}</div>
+                    <div class="stat-label">Students ≥85%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${lowAttendance}</div>
+                    <div class="stat-label">Students <70%</div>
+                </div>
+            `;
+            document.getElementById('statsGrid').innerHTML = statsHtml;
+            
+            // Build table
+            let tableHtml = '<thead><tr>';
+            tableHtml += '<th>Student</th><th>Email</th>';
+            dates.forEach(date => {
+                tableHtml += `<th>${date}</th>`;
+            });
+            tableHtml += '<th>Present</th><th>Absent</th><th>Attendance %</th>';
+            tableHtml += '</tr></thead><tbody>';
+            
+            students.forEach(student => {
+                tableHtml += '<tr>';
+                tableHtml += `<td>${student.name}</td>`;
+                tableHtml += `<td style="font-size: 0.75rem; color: var(--text-dim);">${student.email}</td>`;
+                
+                dates.forEach(date => {
+                    const status = student.dates[date];
+                    tableHtml += `<td class="${status === 'P' ? 'present' : 'absent'}">${status}</td>`;
+                });
+                
+                tableHtml += `<td>${student.present}</td>`;
+                tableHtml += `<td>${student.absent}</td>`;
+                
+                let percentageClass = 'percentage-low';
+                if (student.percentage >= 85) percentageClass = 'percentage-high';
+                else if (student.percentage >= 70) percentageClass = 'percentage-medium';
+                
+                tableHtml += `<td class="percentage-cell ${percentageClass}">${student.percentage}%</td>`;
+                tableHtml += '</tr>';
+            });
+            
+            tableHtml += '</tbody>';
+            document.getElementById('resultsTable').innerHTML = tableHtml;
+            
+            // Show results section
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        function downloadExcel() {
+            if (!attendanceData) return;
+            
+            const { students, dates } = attendanceData;
+            
+            // Create worksheet data
+            const wsData = [];
+            
+            // Headers
+            const headers = ['Student', 'Email', ...dates, 'Total Present', 'Total Absent', 'Attendance %'];
+            wsData.push(headers);
+            
+            // Data rows
+            students.forEach(student => {
+                const row = [
+                    student.name,
+                    student.email,
+                    ...dates.map(date => student.dates[date]),
+                    student.present,
+                    student.absent,
+                    student.percentage
+                ];
+                wsData.push(row);
+            });
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 25 }, // Student
+                { wch: 28 }, // Email
+                ...dates.map(() => ({ wch: 8 })), // Dates
+                { wch: 14 }, // Present
+                { wch: 14 }, // Absent
+                { wch: 14 }  // Percentage
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, 'Attendance Matrix');
+            XLSX.writeFile(wb, 'Attendance_Matrix.xlsx');
+        }
+        
+        function downloadCSV() {
+            if (!attendanceData) return;
+            
+            const { students, dates } = attendanceData;
+            
+            // Create CSV content
+            let csv = 'Student,Email,';
+            csv += dates.join(',') + ',';
+            csv += 'Total Present,Total Absent,Attendance %\n';
+            
+            students.forEach(student => {
+                csv += `"${student.name}","${student.email}",`;
+                csv += dates.map(date => student.dates[date]).join(',') + ',';
+                csv += `${student.present},${student.absent},${student.percentage}\n`;
+            });
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Attendance_Matrix.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
