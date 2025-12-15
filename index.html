@@ -112,15 +112,6 @@
             font-weight: 700;
             margin-bottom: 1.5rem;
             color: var(--highlight);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .section-title::before {
-            content: '//';
-            color: var(--text-dim);
-            font-family: 'JetBrains Mono', monospace;
         }
         
         .file-input-wrapper {
@@ -385,14 +376,10 @@
             font-size: 1.2rem;
         }
         
-        .instructions ol {
-            margin-left: 1.5rem;
-            line-height: 1.8;
-        }
-        
-        .instructions li {
-            margin-bottom: 0.5rem;
+        .instructions p {
+            margin-bottom: 0.75rem;
             color: var(--text-dim);
+            line-height: 1.7;
         }
         
         .instructions code {
@@ -502,32 +489,13 @@
             
             <div class="instructions">
                 <h3>How to Use</h3>
-                <ol>
-                    <li><strong>Upload your ORIGINAL Excel file</strong> - the one with all the attendance sheets from Google Forms</li>
-                    <li>Your Excel file should have:
-                        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
-                            <li>One main sheet with student roster (names and emails)</li>
-                            <li>Multiple sheets with attendance data (one per class session)</li>
-                        </ul>
-                    </li>
-                    <li>Each attendance sheet needs an <code>Email Address</code> column</li>
-                    <li>The roster sheet should have:
-                        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
-                            <li>A column for student names (Student, Name, etc.)</li>
-                            <li>A column for student emails (Email, Andrew, Email Address, etc.)</li>
-                        </ul>
-                    </li>
-                    <li>Click "Generate Matrix" and the app will:
-                        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
-                            <li>Count total classes (number of attendance sheets)</li>
-                            <li>Count how many classes each student attended</li>
-                            <li>Calculate attendance percentages</li>
-                        </ul>
-                    </li>
-                </ol>
-                <div style="margin-top: 1rem; text-align: center;">
-    <a href="Sample_Attendance_Template.xlsx" download style="display: inline-block; padding: 0.75rem 1.5rem; background: rgba(6, 214, 160, 0.1); border: 1px solid var(--success); color: var(--success); text-decoration: none; border-radius: 8px; font-size: 0.9rem; transition: all 0.3s ease;">
-        📥 Download Sample Template </a>
+                <p>Upload your Excel file with attendance data from Google Forms. The file should have one main roster sheet and multiple attendance sheets (one per class).</p>
+                <p>Not sure about the format? <strong>Download the sample template below</strong> to see exactly how your file should be structured.</p>
+                
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <a href="Sample_Attendance_Template.xlsx" download style="display: inline-block; padding: 0.75rem 1.5rem; background: rgba(6, 214, 160, 0.1); border: 1px solid var(--success); color: var(--success); text-decoration: none; border-radius: 8px; font-size: 0.9rem; transition: all 0.3s ease;">
+                        📥 Download Sample Template
+                    </a>
                 </div>
             </div>
             
