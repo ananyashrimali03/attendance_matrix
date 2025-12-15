@@ -503,12 +503,31 @@
             <div class="instructions">
                 <h3>📋 How to Use</h3>
                 <ol>
-                    <li>Upload your Excel file with attendance sheets (each sheet = one class date)</li>
-                    <li>Each sheet should have an <code>Email Address</code> column with student emails</li>
-                    <li>The main sheet should be named <code>Final AttendanceParticipation</code> with student roster</li>
-                    <li>(Optional) Add additional attendance for specific dates using the text area below</li>
-                    <li>Click "Generate Matrix" to create your attendance report</li>
+                    <li><strong>Upload your ORIGINAL Excel file</strong> - the one with all the attendance sheets from Google Forms</li>
+                    <li>Your Excel file should have:
+                        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
+                            <li>One main sheet with student roster (names and emails)</li>
+                            <li>Multiple sheets with attendance data (one per class session)</li>
+                        </ul>
+                    </li>
+                    <li>Each attendance sheet needs an <code>Email Address</code> column</li>
+                    <li>The roster sheet should have:
+                        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
+                            <li>A column for student names (Student, Name, etc.)</li>
+                            <li>A column for student emails (Email, Andrew, Email Address, etc.)</li>
+                        </ul>
+                    </li>
+                    <li>Click "Generate Matrix" and the app will:
+                        <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
+                            <li>Count total classes (number of attendance sheets)</li>
+                            <li>Count how many classes each student attended</li>
+                            <li>Calculate attendance percentages</li>
+                        </ul>
+                    </li>
                 </ol>
+                <div style="margin-top: 1rem; padding: 1rem; background: rgba(233, 69, 96, 0.1); border-radius: 8px; border-left: 3px solid var(--highlight);">
+                    <strong>⚠️ Important:</strong> Upload your original Excel file with attendance data, NOT a file you've already downloaded from this app!
+                </div>
             </div>
             
             <div class="file-input-wrapper">
@@ -526,14 +545,17 @@
                 <label for="additionalAttendance">Additional Attendance (Optional)</label>
                 <textarea 
                     id="additionalAttendance" 
-                    placeholder="Format: Date Name|Email Address
+                    placeholder="Add students who attended but may not be in Excel sheets.
+Format: Name|Email (one per line)
+
 Example:
-Nov 13 John Doe|jdoe@example.com
-Nov 13 Jane Smith|jsmith@example.com
-Dec 5 John Doe|jdoe@example.com"
+John Doe|jdoe@example.com
+Jane Smith|jsmith@example.com
+
+Note: This will add +1 to their attendance count"
                 ></textarea>
                 <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-dim);">
-                    Add attendance records from paper sign-in sheets or photos. Each line should be: Date Name|Email
+                    Add attendance from paper sign-in sheets. Each entry adds 1 class to that student's count.
                 </div>
             </div>
             
@@ -606,49 +628,6 @@ Dec 5 John Doe|jdoe@example.com"
             statusDiv.style.display = 'block';
         }
         
-        function parseAdditionalAttendance(text) {
-            const lines = text.trim().split('\n');
-            const attendance = {};
-            
-            lines.forEach(line => {
-                line = line.trim();
-                if (!line) return;
-                
-                // Parse format: "Date Name|Email"
-                const parts = line.split('|');
-                if (parts.length !== 2) return;
-                
-                const email = parts[1].trim();
-                const dateAndName = parts[0].trim();
-                const dateParts = dateAndName.split(' ');
-                
-                // Get date (first 1-2 words depending on format)
-                let date;
-                if (dateParts.length >= 2) {
-                    // Check if second part is a number (day)
-                    if (!isNaN(dateParts[1])) {
-                        date = `${dateParts[0]} ${dateParts[1]}`;
-                    } else {
-                        date = dateParts[0];
-                    }
-                }
-                
-                if (!date) return;
-                
-                if (!attendance[date]) {
-                    attendance[date] = new Set();
-                }
-                attendance[date].add(email);
-            });
-            
-            // Convert Sets to Arrays
-            Object.keys(attendance).forEach(date => {
-                attendance[date] = Array.from(attendance[date]);
-            });
-            
-            return attendance;
-        }
-        
         function processAttendance() {
             if (!workbook) {
                 showStatus('Please upload an Excel file first!', 'error');
@@ -662,143 +641,152 @@ Dec 5 John Doe|jdoe@example.com"
             try {
                 // Get all sheet names
                 const sheetNames = workbook.SheetNames;
-                const excludedSheets = ['Final AttendanceParticipation', 'Suggestions', 
-                                      'Form Responses 20', 'Form Responses 19', 'Form Responses 18'];
                 
-                const dateSheets = sheetNames.filter(name => !excludedSheets.includes(name));
+                // Exclude sheets that are likely rosters, summaries, or form responses
+                const excludedSheets = sheetNames.filter(name => {
+                    const lower = name.toLowerCase();
+                    return lower.includes('final') || 
+                           lower.includes('roster') ||
+                           lower.includes('summary') ||
+                           lower.includes('participation') ||
+                           lower.includes('suggestion') ||
+                           lower.includes('form response') ||
+                           lower.includes('attendance summary') ||
+                           lower.includes('attendance matrix');
+                });
                 
-                // Load main student roster
-                const mainSheet = workbook.Sheets['Final AttendanceParticipation'];
+                const attendanceSheets = sheetNames.filter(name => !excludedSheets.includes(name));
+                const totalClasses = attendanceSheets.length;
+                
+                if (totalClasses === 0) {
+                    throw new Error('No attendance sheets found in the Excel file');
+                }
+                
+                // Load main student roster - try to find it by name
+                let mainSheet = workbook.Sheets['Final AttendanceParticipation'];
+                let mainSheetName = 'Final AttendanceParticipation';
+                
+                // If not found, look for sheets with "roster", "student", or "participation" in name
                 if (!mainSheet) {
-                    throw new Error('Could not find "Final AttendanceParticipation" sheet');
+                    const possibleNames = sheetNames.filter(name => 
+                        name.toLowerCase().includes('roster') || 
+                        name.toLowerCase().includes('student') || 
+                        name.toLowerCase().includes('participation') ||
+                        name.toLowerCase().includes('attendance summary')
+                    );
+                    
+                    if (possibleNames.length > 0) {
+                        mainSheetName = possibleNames[0];
+                        mainSheet = workbook.Sheets[mainSheetName];
+                    }
+                }
+                
+                // If still not found, use the first sheet
+                if (!mainSheet) {
+                    mainSheetName = sheetNames[0];
+                    mainSheet = workbook.Sheets[mainSheetName];
+                    showStatus(`Using "${mainSheetName}" as roster sheet. Make sure it has Student and Email columns.`, 'info');
                 }
                 
                 const mainData = XLSX.utils.sheet_to_json(mainSheet);
                 
-                // Initialize attendance tracking
-                const students = mainData.map(row => ({
-                    name: row.Student || row.student || '',
-                    email: row.Andrew || row.Email || row.email || ''
-                })).filter(s => s.email);
+                // Initialize attendance tracking - be flexible with column names
+                const students = mainData.map(row => {
+                    // Try different possible column names for student name
+                    const name = row.Student || row.student || row.Name || row.name || 
+                                row['Student Name'] || row['STUDENT'] || '';
+                    
+                    // Try different possible column names for email
+                    const email = row.Andrew || row.Email || row.email || row['Email Address'] ||
+                                 row['email address'] || row.EMAIL || row['Student Email'] || '';
+                    
+                    return { name, email };
+                }).filter(s => s.email && s.name);
                 
-                const attendanceByEmail = {};
+                if (students.length === 0) {
+                    throw new Error('No students found in roster. Check "Student" and "Andrew" columns.');
+                }
+                
+                const attendanceCount = {};
                 students.forEach(student => {
-                    attendanceByEmail[student.email] = {
+                    attendanceCount[student.email] = {
                         name: student.name,
-                        dates: {}
+                        count: 0,
+                        sheets: []
                     };
                 });
                 
-                // Get dates from Excel sheets
-                const allDates = [];
-                const sheetToDate = {};
-                
-                dateSheets.forEach(sheetName => {
+                // Count attendance from each sheet
+                attendanceSheets.forEach(sheetName => {
                     const sheet = workbook.Sheets[sheetName];
                     const data = XLSX.utils.sheet_to_json(sheet);
                     
-                    if (data.length > 0) {
-                        // Try to get date from timestamp
-                        let date = null;
-                        if (data[0].Timestamp) {
-                            const timestamp = new Date(data[0].Timestamp);
-                            if (!isNaN(timestamp)) {
-                                date = timestamp.toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: '2-digit' 
-                                });
-                            }
-                        }
-                        
-                        if (date) {
-                            sheetToDate[sheetName] = date;
-                            allDates.push(date);
-                        }
-                    }
-                });
-                
-                // Parse additional attendance
-                const additionalText = document.getElementById('additionalAttendance').value;
-                const additionalAttendance = parseAdditionalAttendance(additionalText);
-                
-                // Add additional dates
-                Object.keys(additionalAttendance).forEach(date => {
-                    if (!allDates.includes(date)) {
-                        allDates.push(date);
-                    }
-                });
-                
-                // Sort dates chronologically
-                allDates.sort((a, b) => {
-                    const dateA = new Date(a + ' 2025');
-                    const dateB = new Date(b + ' 2025');
-                    return dateA - dateB;
-                });
-                
-                // Initialize all dates as absent
-                students.forEach(student => {
-                    allDates.forEach(date => {
-                        attendanceByEmail[student.email].dates[date] = 'A';
-                    });
-                });
-                
-                // Mark attendance from Excel sheets
-                dateSheets.forEach(sheetName => {
-                    const date = sheetToDate[sheetName];
-                    if (!date) return;
+                    if (data.length === 0) return;
                     
-                    const sheet = workbook.Sheets[sheetName];
-                    const data = XLSX.utils.sheet_to_json(sheet);
-                    
-                    const emailColumn = data[0] && Object.keys(data[0]).find(key => 
+                    // Find email column (case-insensitive)
+                    const emailColumn = Object.keys(data[0]).find(key => 
                         key.toLowerCase().includes('email')
                     );
                     
                     if (emailColumn) {
+                        const emailsInSheet = new Set();
                         data.forEach(row => {
                             const email = row[emailColumn];
-                            if (email && attendanceByEmail[email]) {
-                                attendanceByEmail[email].dates[date] = 'P';
+                            if (email && attendanceCount[email] && !emailsInSheet.has(email)) {
+                                attendanceCount[email].count++;
+                                attendanceCount[email].sheets.push(sheetName);
+                                emailsInSheet.add(email);
                             }
                         });
                     }
                 });
                 
-                // Mark additional attendance
-                Object.keys(additionalAttendance).forEach(date => {
-                    additionalAttendance[date].forEach(email => {
-                        if (attendanceByEmail[email]) {
-                            attendanceByEmail[email].dates[date] = 'P';
+                // Parse additional attendance from text area
+                const additionalText = document.getElementById('additionalAttendance').value;
+                if (additionalText.trim()) {
+                    const lines = additionalText.trim().split('\n');
+                    
+                    lines.forEach(line => {
+                        line = line.trim();
+                        if (!line) return;
+                        
+                        // Parse format: "Name|Email" or "Date Name|Email"
+                        const parts = line.split('|');
+                        if (parts.length === 2) {
+                            const email = parts[1].trim();
+                            if (attendanceCount[email]) {
+                                attendanceCount[email].count++;
+                                attendanceCount[email].sheets.push('Manual Entry');
+                            }
                         }
                     });
-                });
+                }
                 
                 // Calculate statistics
                 const results = students.map(student => {
                     const email = student.email;
-                    const dates = attendanceByEmail[email].dates;
-                    const present = Object.values(dates).filter(v => v === 'P').length;
-                    const absent = Object.values(dates).filter(v => v === 'A').length;
-                    const percentage = allDates.length > 0 ? (present / allDates.length * 100).toFixed(1) : 0;
+                    const present = attendanceCount[email].count;
+                    const absent = totalClasses - present;
+                    const percentage = totalClasses > 0 ? (present / totalClasses * 100).toFixed(1) : 0;
                     
                     return {
                         name: student.name,
                         email: email,
-                        dates: dates,
                         present: present,
                         absent: absent,
-                        percentage: parseFloat(percentage)
+                        percentage: parseFloat(percentage),
+                        sheets: attendanceCount[email].sheets
                     };
                 });
                 
                 attendanceData = {
                     students: results,
-                    dates: allDates,
-                    totalClasses: allDates.length
+                    totalClasses: totalClasses,
+                    sheetNames: attendanceSheets
                 };
                 
                 displayResults(attendanceData);
-                showStatus(`Successfully processed ${students.length} students across ${allDates.length} class dates!`, 'success');
+                showStatus(`Successfully processed ${students.length} students across ${totalClasses} class sessions!`, 'success');
                 
             } catch (error) {
                 showStatus(`Error: ${error.message}`, 'error');
@@ -810,12 +798,14 @@ Dec 5 John Doe|jdoe@example.com"
         }
         
         function displayResults(data) {
-            const { students, dates, totalClasses } = data;
+            const { students, totalClasses, sheetNames } = data;
             
             // Calculate statistics
             const avgAttendance = (students.reduce((sum, s) => sum + s.percentage, 0) / students.length).toFixed(1);
             const highAttendance = students.filter(s => s.percentage >= 85).length;
             const lowAttendance = students.filter(s => s.percentage < 70).length;
+            const maxAttendance = Math.max(...students.map(s => s.percentage));
+            const minAttendance = Math.min(...students.map(s => s.percentage));
             
             // Display stats
             const statsHtml = `
@@ -842,27 +832,23 @@ Dec 5 John Doe|jdoe@example.com"
             `;
             document.getElementById('statsGrid').innerHTML = statsHtml;
             
-            // Build table
+            // Build simplified table - no individual dates, just totals
             let tableHtml = '<thead><tr>';
             tableHtml += '<th>Student</th><th>Email</th>';
-            dates.forEach(date => {
-                tableHtml += `<th>${date}</th>`;
-            });
-            tableHtml += '<th>Present</th><th>Absent</th><th>Attendance %</th>';
+            tableHtml += '<th>Classes Attended</th><th>Classes Missed</th><th>Total Classes</th><th>Attendance %</th>';
             tableHtml += '</tr></thead><tbody>';
             
-            students.forEach(student => {
+            // Sort by percentage descending
+            const sortedStudents = [...students].sort((a, b) => b.percentage - a.percentage);
+            
+            sortedStudents.forEach(student => {
                 tableHtml += '<tr>';
-                tableHtml += `<td>${student.name}</td>`;
+                tableHtml += `<td><strong>${student.name}</strong></td>`;
                 tableHtml += `<td style="font-size: 0.75rem; color: var(--text-dim);">${student.email}</td>`;
                 
-                dates.forEach(date => {
-                    const status = student.dates[date];
-                    tableHtml += `<td class="${status === 'P' ? 'present' : 'absent'}">${status}</td>`;
-                });
-                
-                tableHtml += `<td>${student.present}</td>`;
-                tableHtml += `<td>${student.absent}</td>`;
+                tableHtml += `<td class="present" style="font-size: 1.1rem;">${student.present}</td>`;
+                tableHtml += `<td class="absent" style="font-size: 1.1rem;">${student.absent}</td>`;
+                tableHtml += `<td style="text-align: center;">${totalClasses}</td>`;
                 
                 let percentageClass = 'percentage-low';
                 if (student.percentage >= 85) percentageClass = 'percentage-high';
@@ -883,23 +869,25 @@ Dec 5 John Doe|jdoe@example.com"
         function downloadExcel() {
             if (!attendanceData) return;
             
-            const { students, dates } = attendanceData;
+            const { students, totalClasses } = attendanceData;
             
             // Create worksheet data
             const wsData = [];
             
             // Headers
-            const headers = ['Student', 'Email', ...dates, 'Total Present', 'Total Absent', 'Attendance %'];
+            const headers = ['Student', 'Email', 'Classes Attended', 'Classes Missed', 'Total Classes', 'Attendance %'];
             wsData.push(headers);
             
-            // Data rows
-            students.forEach(student => {
+            // Data rows - sort by percentage descending
+            const sortedStudents = [...students].sort((a, b) => b.percentage - a.percentage);
+            
+            sortedStudents.forEach(student => {
                 const row = [
                     student.name,
                     student.email,
-                    ...dates.map(date => student.dates[date]),
                     student.present,
                     student.absent,
+                    totalClasses,
                     student.percentage
                 ];
                 wsData.push(row);
@@ -913,30 +901,30 @@ Dec 5 John Doe|jdoe@example.com"
             ws['!cols'] = [
                 { wch: 25 }, // Student
                 { wch: 28 }, // Email
-                ...dates.map(() => ({ wch: 8 })), // Dates
-                { wch: 14 }, // Present
-                { wch: 14 }, // Absent
-                { wch: 14 }  // Percentage
+                { wch: 18 }, // Attended
+                { wch: 18 }, // Missed
+                { wch: 15 }, // Total
+                { wch: 15 }  // Percentage
             ];
             
-            XLSX.utils.book_append_sheet(wb, ws, 'Attendance Matrix');
-            XLSX.writeFile(wb, 'Attendance_Matrix.xlsx');
+            XLSX.utils.book_append_sheet(wb, ws, 'Attendance Summary');
+            XLSX.writeFile(wb, 'Attendance_Summary.xlsx');
         }
         
         function downloadCSV() {
             if (!attendanceData) return;
             
-            const { students, dates } = attendanceData;
+            const { students, totalClasses } = attendanceData;
             
             // Create CSV content
-            let csv = 'Student,Email,';
-            csv += dates.join(',') + ',';
-            csv += 'Total Present,Total Absent,Attendance %\n';
+            let csv = 'Student,Email,Classes Attended,Classes Missed,Total Classes,Attendance %\n';
             
-            students.forEach(student => {
+            // Sort by percentage descending
+            const sortedStudents = [...students].sort((a, b) => b.percentage - a.percentage);
+            
+            sortedStudents.forEach(student => {
                 csv += `"${student.name}","${student.email}",`;
-                csv += dates.map(date => student.dates[date]).join(',') + ',';
-                csv += `${student.present},${student.absent},${student.percentage}\n`;
+                csv += `${student.present},${student.absent},${totalClasses},${student.percentage}\n`;
             });
             
             // Download
@@ -944,7 +932,7 @@ Dec 5 John Doe|jdoe@example.com"
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Attendance_Matrix.csv';
+            a.download = 'Attendance_Summary.csv';
             a.click();
             window.URL.revokeObjectURL(url);
         }
