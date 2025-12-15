@@ -1,6 +1,6 @@
 # Attendance Matrix Generator
 
-A beautiful, modern web application for generating comprehensive attendance reports from Excel files. Built for Carnegie Mellon University School of Architecture.
+A web application for generating comprehensive attendance reports from Excel files. Built when I was a TA for Environments II at Carnegie Mellon University School of Architecture.
 
 ## Features
 
@@ -20,12 +20,6 @@ A beautiful, modern web application for generating comprehensive attendance repo
 - Download as Excel (.xlsx)
 - Download as CSV
 - Fully formatted and ready to use
-
-**Beautiful Design**
-- Modern, dark-themed interface
-- Responsive design works on all devices
-- Smooth animations and transitions
-- Professional typography
 
 ## How to Use
 
