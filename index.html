@@ -614,12 +614,11 @@ Note: This will add +1 to their attendance count"
                 // Exclude sheets that are likely rosters, summaries, or form responses
                 const excludedSheets = sheetNames.filter(name => {
                     const lower = name.toLowerCase();
-                    return lower.includes('final') || 
+                    return lower.includes('final') ||
                            lower.includes('roster') ||
                            lower.includes('summary') ||
                            lower.includes('participation') ||
                            lower.includes('suggestion') ||
-                           lower.includes('form response') ||
                            lower.includes('attendance summary') ||
                            lower.includes('attendance matrix');
                 });
